@@ -32,10 +32,10 @@ cd Udacity-ML-Capstone-Project
 
 4. Switch [Keras backend](https://keras.io/backend/) to TensorFlow.
 	- __Windows__: 
-		```
-		set KERAS_BACKEND=tensorflow
-		python -c "from keras import backend"
-		```
+	```
+	set KERAS_BACKEND=tensorflow
+	python -c "from keras import backend"
+	```
 5. Create an [IPython kernel](http://ipython.readthedocs.io/en/stable/install/kernel_install.html) for the `capstone-project` environment. 
 ```
 python -m ipykernel install --user --name capstone-project --display-name "capstone-project"
