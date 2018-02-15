@@ -1,0 +1,12 @@
+dataset = "data/ASSISTments_skill_builder_data.csv"
+model_file = "saved_models/dkt_model.weights.{epoch: 02d}-{val_loss: .5f}.hdf5" # File to save the model
+train_log = "logs/dktmodel.train.log"
+eval_log = "logs/dktmodel.eval.log"
+optimizer = "rmsprop"
+lstm_units = 250
+batch_size = 20
+epochs = 200
+dropout_rate = 0.6
+verbose = 1
+validation_rate = 0.2 # Portion of training data to be used for validation
+testing_rate = 0.2 # Portion of data to be used for testing

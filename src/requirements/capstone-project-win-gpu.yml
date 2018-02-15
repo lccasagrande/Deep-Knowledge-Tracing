@@ -1,0 +1,108 @@
+name: capstone-project
+channels:
+- anaconda
+- conda-forge
+- defaults
+dependencies:
+- freetype=2.8=vc14h17c9bdf_0
+- graphviz=2.38.0=4
+- h5py=2.7.1=py35hd8ea038_0
+- hdf5=1.8.18=vc14h7a021fe_0
+- icu=58.2=vc14hc45fdbb_0
+- jpeg=9b=vc14h4d7706e_1
+- libpng=1.6.32=vc14h5163883_3
+- openssl=1.0.2l=vc14hf4c37d5_5
+- pydot=1.2.3=py35hd159ffb_0
+- qt=5.6.2=vc14h6f8c307_12
+- scikit-learn=0.19.1=py35h2037775_0
+- sqlite=3.20.1=vc14h7ce8c62_1
+- zlib=1.2.11=vc14h1cdd9ab_1
+- libgpuarray=0.7.5=vc14_0
+- mako=1.0.7=py35_0
+- pygpu=0.7.5=py35_0
+- pyyaml=3.12=py35_1
+- theano=1.0.1=py35_1
+- yaml=0.1.7=vc14_0
+- bleach=2.1.2=py35_0
+- ca-certificates=2017.08.26=h94faf87_0
+- certifi=2018.1.18=py35_0
+- colorama=0.3.9=py35h32a752f_0
+- cycler=0.10.0=py35hcc71164_0
+- decorator=4.2.1=py35_0
+- entrypoints=0.2.3=py35hb91ced9_2
+- html5lib=1.0.1=py35h047fa9f_0
+- icc_rt=2017.0.4=h97af966_0
+- intel-openmp=2018.0.0=hd92c6cd_8
+- ipykernel=4.8.0=py35_0
+- ipython=6.2.1=py35h4a2ac14_1
+- ipython_genutils=0.2.0=py35ha709e79_0
+- ipywidgets=7.1.1=py35_0
+- jedi=0.11.1=py35_0
+- jinja2=2.10=py35hdf652bb_0
+- jsonschema=2.6.0=py35h27d56d3_0
+- jupyter=1.0.0=py35hce9caf1_2
+- jupyter_client=5.2.2=py35_0
+- jupyter_console=5.2.0=py35hf76c22e_1
+- jupyter_core=4.4.0=py35h629ba7f_0
+- keras=2.1.3=py35_0
+- libprotobuf=3.4.1=h3dba5dd_0
+- markupsafe=1.0=py35hc253e08_1
+- matplotlib=2.1.1=py35h2062329_0
+- mistune=0.8.3=py35_0
+- mkl=2018.0.1=h2108138_4
+- nbconvert=5.3.1=py35h98d6c46_0
+- nbformat=4.4.0=py35h908c9d9_0
+- notebook=5.3.1=py35_2
+- numpy=1.12.1=py35h02c1717_1
+- pandas=0.22.0=py35h6538335_0
+- pandoc=1.19.2.1=hb2460c7_1
+- pandocfilters=1.4.2=py35h978f723_1
+- parso=0.1.1=py35he39c48a_0
+- patsy=0.5.0=py35_0
+- pickleshare=0.7.4=py35h2f9f535_0
+- pip=9.0.1=py35h691316f_4
+- prompt_toolkit=1.0.15=py35h89c7cb4_0
+- protobuf=3.4.1=py35h58370bd_0
+- pygments=2.2.0=py35h24c0941_0
+- pyparsing=2.2.0=py35hcabcaab_1
+- pyqt=5.6.0=py35hd46907b_5
+- python=3.5.4=h1357f44_23
+- python-dateutil=2.6.1=py35h6b299a3_1
+- pytz=2017.3=py35hb294b1a_0
+- pyzmq=16.0.3=py35h1861011_0
+- qtconsole=4.3.1=py35hc47b0dd_0
+- scipy=1.0.0=py35h75710e8_0
+- seaborn=0.8.1=py35hc73483e_0
+- send2trash=1.4.2=py35_0
+- setuptools=38.4.0=py35_0
+- simplegeneric=0.8.1=py35h6406082_0
+- sip=4.18.1=py35h01cbaa7_2
+- six=1.11.0=py35hc1da2df_1
+- statsmodels=0.8.0=py35hfa6034c_0
+- tensorflow=1.1.0=np112py35_0
+- testpath=0.3.1=py35h06cf69e_0
+- tornado=4.5.3=py35_0
+- traitlets=4.3.2=py35h09b975b_0
+- vc=14=h0510ff6_3
+- vs2015_runtime=14.0.25420=0
+- wcwidth=0.1.7=py35h6e80d8a_0
+- webencodings=0.5.1=py35h5d527fb_1
+- werkzeug=0.14.1=py35_0
+- wheel=0.30.0=py35h38a90bc_1
+- widgetsnbextension=3.1.0=py35_0
+- win_unicode_console=0.5=py35h56988b5_0
+- wincertstore=0.2=py35hfebbdb8_0
+- pip:
+  - absl-py==0.1.10
+  - futures==3.1.1
+  - ipython-genutils==0.2.0
+  - jupyter-client==5.2.2
+  - jupyter-console==5.2.0
+  - jupyter-core==4.4.0
+  - markdown==2.6.11
+  - prompt-toolkit==1.0.15
+  - tensorflow-gpu==1.5.0
+  - tensorflow-tensorboard==1.5.0
+  - win-unicode-console==0.5
+prefix: C:\Users\D2\Anaconda2\envs\capstone-project
+
