@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" autoUpload="Always" serverName="RemotePath" autoUploadExternalChanges="true">
+    <serverData>
+      <paths name="Copy of project-level server 'RemotePath'">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/deep" local="$PROJECT_DIR$" web="" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="RemotePath">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/lucas/Deep" local="$PROJECT_DIR$" web="" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
+  </component>
+</project>

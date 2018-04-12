@@ -10,6 +10,7 @@ import math
 import numpy as np
 
 
+# This method is for internal use. You should not use it outside of this file.
 def model_evaluate(test_gen, model, metrics, verbose=0):
     def predict():
         def get_target_skills(preds, labels):
@@ -77,79 +78,13 @@ def model_evaluate(test_gen, model, metrics, verbose=0):
 
     return results
 
-
-class Model(object):
-    def __init__(self, num_skills, num_features, optimizer='rmsprop', hidden_units=100, batch_size=5, dropout_rate=0.5):
-        def get_target_skills(y_true, y_pred):
-            target_skills = y_true[:, :, 0:num_skills]
-            target_labels = y_true[:, :, num_skills]
-            target_preds = K.sum(y_pred * target_skills, axis=2)
-
-            return target_preds, target_labels
-
-        def loss_function(y_true, y_pred):
-            target_preds, target_labels = get_target_skills(y_true, y_pred)
-            return K.binary_crossentropy(target_labels, target_preds)
-
-        self.batch_size = batch_size
-        self.num_skills = num_skills
-
-        self.__model = Sequential()
-        self.__model.add(Masking(-1., batch_input_shape=(batch_size, None, num_features)))
-        self.__model.add(LSTM(hidden_units, return_sequences=True, stateful=True))
-        self.__model.add(Dropout(dropout_rate))
-        self.__model.add(TimeDistributed(Dense(num_skills, activation='sigmoid')))
-        self.__model.compile(loss=loss_function, optimizer=optimizer)
-
-    def load_weights(self, model_weights):
-        assert(model_weights is not None)
-        self.__model.load_weights(model_weights)
-
-    def fit(self, train_gen, epochs, val_gen, verbose=0, file=None, log_file=None):
-        assert (isinstance(train_gen, DataGenerator))
-        assert (isinstance(val_gen, DataGenerator))
-
-        callbacks = []
-        callbacks.append(MetricsCallback(val_gen, metrics=['auc','pre','acc']))
-
-        if file is not None:
-            callbacks.append(ModelCheckpoint(file, monitor='val_loss', verbose=verbose, save_best_only=True))
-        if log_file is not None:
-            callbacks.append(CSVLogger(log_file))
-
-        if verbose:
-            print("==== Training Started ====")
-
-        history = self.__model.fit_generator(shuffle=False,
-                                             validation_data=val_gen.get_generator(),
-                                             validation_steps=val_gen.total_steps,
-                                             epochs=epochs,
-                                             steps_per_epoch=train_gen.total_steps,
-                                             generator=train_gen.get_generator(),
-                                             callbacks=callbacks,
-                                             verbose=verbose)
-
-        if verbose:
-            print("==== Training Done ====")
-
-        return history
-
-    def evaluate(self, test_gen, metrics, verbose=0, log_file=None):
-        assert (isinstance(test_gen, DataGenerator))
-        assert (metrics is not None)
-
-        results = model_evaluate(test_gen, self.__model, metrics, verbose)
-
-        if log_file is not None:
-            with open(log_file, 'w') as fl:
-                fl.write("auc,acc,pre\n{0},{1},{2}".format(results['auc'], results['acc'], results['pre']))
-
-        return results
-
-
+# This class is for internal use. You should not use it outside of this file.
 class MetricsCallback(Callback):
     def __init__(self, data_gen, metrics, verbose=0):
         super(MetricsCallback, self).__init__()
+        assert (isinstance(data_gen, DataGenerator))
+        assert (metrics is not None)
+
         self.data_gen = data_gen
         self.metrics = metrics
         self.verbose = verbose
@@ -172,7 +107,77 @@ class MetricsCallback(Callback):
         if 'pre' in self.metrics:
             logs['val_pre'] = results['pre']
 
+# This class defines the DKT model.
+class DKTModel(object):
+    def __init__(self, num_skills, num_features, optimizer='rmsprop', hidden_units=100, batch_size=5, dropout_rate=0.5):
+        def get_target_skills(y_true, y_pred):
+            target_skills = y_true[:, :, 0:num_skills]
+            target_labels = y_true[:, :, num_skills]
+            target_preds = K.sum(y_pred * target_skills, axis=2)
 
+            return target_preds, target_labels
+
+        def loss_function(y_true, y_pred):
+            target_preds, target_labels = get_target_skills(y_true, y_pred)
+            return K.binary_crossentropy(target_labels, target_preds)
+
+        self.batch_size = batch_size
+        self.num_skills = num_skills
+
+        self.__model = Sequential()
+        self.__model.add(Masking(-1., batch_input_shape=(batch_size, None, num_features)))
+        self.__model.add(LSTM(hidden_units, return_sequences=True, stateful=True))
+        self.__model.add(Dropout(dropout_rate))
+        self.__model.add(TimeDistributed(Dense(num_skills, activation='sigmoid')))
+        self.__model.compile(loss=loss_function, optimizer=optimizer)
+
+    def load_weights(self, filepath):
+        assert(filepath is not None)
+        self.__model.load_weights(filepath)
+
+    def fit(self, train_gen, epochs, val_gen, verbose=0, filepath_bestmodel=None, filepath_log=None):
+        assert (isinstance(train_gen, DataGenerator))
+        assert (isinstance(val_gen, DataGenerator))
+
+        callbacks = []
+        callbacks.append(MetricsCallback(val_gen, metrics=['auc','pre','acc']))
+
+        if filepath_bestmodel is not None:
+            callbacks.append(ModelCheckpoint(filepath_bestmodel, monitor='val_loss', verbose=verbose, save_best_only=True))
+        if filepath_log is not None:
+            callbacks.append(CSVLogger(filepath_log))
+
+        if verbose:
+            print("==== Training Started ====")
+
+        history = self.__model.fit_generator(shuffle=False,
+                                             validation_data=val_gen.get_generator(),
+                                             validation_steps=val_gen.total_steps,
+                                             epochs=epochs,
+                                             steps_per_epoch=train_gen.total_steps,
+                                             generator=train_gen.get_generator(),
+                                             callbacks=callbacks,
+                                             verbose=verbose)
+
+        if verbose:
+            print("==== Training Done ====")
+
+        return history
+
+    def evaluate(self, test_gen, metrics, verbose=0, filepath_log=None):
+        assert (isinstance(test_gen, DataGenerator))
+        assert (metrics is not None)
+
+        results = model_evaluate(test_gen, self.__model, metrics, verbose)
+
+        if filepath_log is not None:
+            with open(filepath_log, 'w') as fl:
+                fl.write("auc,acc,pre\n{0},{1},{2}".format(results['auc'], results['acc'], results['pre']))
+
+        return results
+
+
+# This class is responsible for feeding the data into the model following a specific format.
 class DataGenerator(object):
     def __init__(self, features, labels, num_skills, batch_size):
         self.features = features
