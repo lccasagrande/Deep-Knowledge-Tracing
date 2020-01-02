@@ -1,13 +1,12 @@
-from keras.callbacks import ModelCheckpoint, Callback, CSVLogger, Progbar
-from keras.models import Sequential
-from keras.layers import TimeDistributed, Masking, Dense, Dropout
-from keras.layers.recurrent import LSTM
-from keras import backend as K
-from sklearn.metrics import roc_auc_score, precision_score, accuracy_score
-from sklearn.preprocessing import OneHotEncoder
+
 import random
 import math
+
+import tensorflow as tf
+import pandas as pd
 import numpy as np
+from sklearn.metrics import roc_auc_score, precision_score, accuracy_score
+from sklearn.preprocessing import OneHotEncoder
 
 
 # This method is for internal use. You should not use it outside of this file.
@@ -172,140 +171,56 @@ class DKTModel(object):
 
         if filepath_log is not None:
             with open(filepath_log, 'w') as fl:
-                fl.write("auc,acc,pre\n{0},{1},{2}".format(results['auc'], results['acc'], results['pre']))
+                fl.write("auc,acc,pre\n{0},{1},{2}".format(
+                    results['auc'], results['acc'], results['pre']))
 
         return results
 
 
-# This class is responsible for feeding the data into the model following a specific format.
-class DataGenerator(object):
-    def __init__(self, features, labels, num_skills, batch_size):
-        self.features = features
-        self.labels = labels
-        self.num_skills = num_skills
-        self.batch_size = batch_size
+def load_dataset(fn, batch_size=32):
+    df = pd.read_csv(fn, dtype={'skill_name': str})
 
-        self.step = 0
-        self.done = False
-        self.feature_dim = num_skills * 2
-        self.label_dim = num_skills + 1
-        self.features_len = len(features)
-        self.total_steps = int(math.ceil(float(self.features_len) / self.batch_size))
-        self.feature_encoder = OneHotEncoder(self.feature_dim, sparse=False)
-        self.label_encoder = OneHotEncoder(self.label_dim, sparse=False)
+    # Step 1 - Remove questions without skill
+    df.dropna(subset=['skill_id'], inplace=True)
 
-    # Ref: https://groups.google.com/forum/#!msg/keras-users/7sw0kvhDqCw/QmDMX952tq8J
-    def __pad_sequences(self, sequences, maxlen=None, dim=1, dtype='int32', padding='pre', truncating='pre', value=0.):
-        '''
-            Override keras method to allow multiple feature dimensions.
+    # Step 2 - Enumerate skill id
+    df['skill'], _ = pd.factorize(df['skill_id'], sort=True)
 
-            @dim: input feature dimension (number of features per timestep)
-        '''
-        lengths = [len(s) for s in sequences]
+    # Step 3 - Cross skill id with answer to form a synthetic feature
+    df['skill_with_answer'] = df['skill'] * 2 + df['correct']
 
-        nb_samples = len(sequences)
-        if maxlen is None:
-            maxlen = np.max(lengths)
+    # Step 4 - Convert to a sequence per user id
+    seq = df.groupby('user_id').apply(
+        lambda r: (
+            r['skill_with_answer'].values,
+            r['skill'].values,
+            r['correct'].values
+        )
+    )
 
-        x = (np.ones((nb_samples, maxlen, dim)) * value).astype(dtype)
-        for idx, s in enumerate(sequences):
-            if truncating == 'pre':
-                trunc = s[-maxlen:]
-            elif truncating == 'post':
-                trunc = s[:maxlen]
-            else:
-                raise ValueError("Truncating type '%s' not understood" % padding)
+    # Step 5 - Get Tensorflow Dataset
+    dataset = tf.data.Dataset.from_generator(
+        generator=lambda: seq,
+        output_types=(tf.int32, tf.int32, tf.float32),
+        output_shapes=((None,), (None,), (None,))
+    )
 
-            if padding == 'post':
-                x[idx, :len(trunc)] = trunc
-            elif padding == 'pre':
-                x[idx, -len(trunc):] = trunc
-            else:
-                raise ValueError("Padding type '%s' not understood" % padding)
-        return x
+    # Step 6 - Pad sequences per batch
+    dataset = dataset.padded_batch(
+        batch_size=batch_size,
+        padding_values=(-1, -1, 0.),
+        padded_shapes=([None], [None], [None])
+    )
 
-    def next_batch(self):
-        def fill_batches(x, y):
-            for e in range(self.batch_size - len(x)):
-                x.append([np.array([-1.0 for _ in range(0, self.feature_dim)])])
-                y.append([np.array([-1.0 for _ in range(0, self.label_dim)])])
+    # Step 7 - Encode categorical features
+    features_depth = df['skill_with_answer'].max() + 1
+    skill_depth = df['skill'].max() + 1
 
-            return x, y
+    dataset = dataset.map(
+        lambda f, m, l: (
+            tf.one_hot(f, depth=features_depth),
+            tf.one_hot(m, depth=skill_depth),
+            l)
+    )
 
-        def pad_sequences(x, y):
-            max_seq_steps = max([len(seq) for seq in x])
-            x = self.__pad_sequences(x, padding='pre', maxlen=max_seq_steps, dim=self.feature_dim, value=-1.0, dtype='float')
-            y = self.__pad_sequences(y, padding='pre', maxlen=max_seq_steps, dim=self.label_dim, value=-1.0, dtype='float')
-
-            return x, y
-
-        def encode_batch(batch_questions, batch_answers):
-            x = []
-            y = []
-            for idx, questions in enumerate(batch_questions):
-                x_student = []
-                y_student = []
-
-                x_data = np.zeros(self.feature_dim, dtype=int)
-                answers = batch_answers[idx]
-
-                for skill_index, skill_value in enumerate(questions):
-                    answer = answers[skill_index]
-
-                    # Encode skill_id
-                    x_student.append(x_data)
-                    skill_answer = skill_value * 2 + answer
-                    x_data = self.feature_encoder.fit_transform(np.reshape(skill_answer, (-1, 1)))
-                    x_data = np.squeeze(x_data)
-
-                    # Encode label
-                    y_data = self.label_encoder.fit_transform(np.reshape(skill_value, (-1, 1)))
-                    y_data = np.squeeze(y_data)
-                    y_data[-1] = answer
-                    y_student.append(y_data)
-
-                x.append(x_student)
-                y.append(y_student)
-
-            return x, y
-
-        assert(~self.done)
-
-        start_pos = self.step * self.batch_size
-        end_pos = (self.step + 1) * self.batch_size
-
-        if end_pos >= self.features_len:
-            self.done = True
-            end_pos = self.features_len
-
-        # Apply one-hot encoding
-        x_batch, y_batch = encode_batch(self.features[start_pos:end_pos], self.labels[start_pos:end_pos])
-
-        # Fill up incomplete batch
-        x_batch, y_batch = fill_batches(x_batch, y_batch)
-
-        # Pad sequences to the same size
-        x_batch, y_batch = pad_sequences(x_batch, y_batch)
-
-        self.step += 1
-
-        return x_batch, y_batch
-
-    def reset(self, shuffle=True):
-        if shuffle:
-            self.shuffle()
-
-        self.done = False
-        self.step = 0
-
-    def shuffle(self):
-        combined = list(zip(self.features, self.labels))
-        random.shuffle(combined)
-        self.features[:], self.labels[:] = zip(*combined)
-
-    def get_generator(self):
-        while True:
-            self.reset()
-            while not self.done:
-                batch_features, batch_labels = self.next_batch()
-                yield batch_features, batch_labels
+    return dataset
