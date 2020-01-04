@@ -1,14 +1,6 @@
 import tensorflow as tf
 
-
-def target_skill_binary_crossentropy(y_true, y_pred):
-    # Get skills and labels from y_true
-    skills, labels = tf.split(y_true, num_or_size_splits=[-1, 1], axis=-1)
-
-    # Get predictions for each skill
-    skill_preds = tf.reduce_sum(y_pred * skills, axis=-1, keepdims=True)
-
-    return tf.keras.losses.binary_crossentropy(labels, skill_preds)
+from deepkt import data_util
 
 
 class DKTModel(tf.keras.Model):
@@ -22,6 +14,7 @@ class DKTModel(tf.keras.Model):
         ValueError: In case of mismatch between the provided input data
             and what the model expects.
     """
+
     def __init__(self, nb_features, nb_skills, hidden_units=100, dropout_rate=0.2):
         inputs = tf.keras.Input(shape=(None, nb_features), name='inputs')
 
@@ -56,8 +49,13 @@ class DKTModel(tf.keras.Model):
             ValueError: In case of invalid arguments for
                 `optimizer` or `metrics`.
         """
+
+        def custom_loss(y_true, y_pred):
+            y_true, y_pred = data_util.get_target(y_true, y_pred)
+            return tf.keras.losses.binary_crossentropy(y_true, y_pred)
+
         super(DKTModel, self).compile(
-            loss=target_skill_binary_crossentropy,
+            loss=custom_loss,
             optimizer=optimizer,
             metrics=metrics,
             experimental_run_tf_function=False)

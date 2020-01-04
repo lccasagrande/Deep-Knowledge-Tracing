@@ -1,6 +1,7 @@
 import pandas as pd
 import tensorflow as tf
 
+
 def load_dataset(fn, batch_size=32, shuffle=True):
     df = pd.read_csv(fn, dtype={'skill_name': str})
 
@@ -77,3 +78,13 @@ def split_dataset(dataset, total_size, test_fraction, val_fraction=None):
         train_set, val_set = split(train_set, val_size)
 
     return train_set, test_set, val_set
+
+
+def get_target(y_true, y_pred):
+    # Get skills and labels from y_true
+    skills, y_true = tf.split(y_true, num_or_size_splits=[-1, 1], axis=-1)
+
+    # Get predictions for each skill
+    y_pred = tf.reduce_sum(y_pred * skills, axis=-1, keepdims=True)
+
+    return y_true, y_pred

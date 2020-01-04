@@ -1,6 +1,8 @@
 import argparse
 
-from deepkt import deepkt, data_util
+import tensorflow as tf
+
+from deepkt import deepkt, data_util, metrics
 
 
 def run(args):
@@ -18,7 +20,14 @@ def run(args):
                             hidden_units=args.hidden_units,
                             dropout_rate=args.dropout_rate)
 
-    model.compile(optimizer='rmsprop')
+    m = [metrics.BinaryAccuracy(),
+         metrics.AUC(),
+         metrics.Precision(),
+         metrics.Recall()]
+
+    model.compile(
+        optimizer='adagrad',
+        metrics=m)
 
     print("\n[----- TRAINING ------]")
 
@@ -53,8 +62,9 @@ def parse_args():
     model_group = parser.add_argument_group(title="Model arguments.")
     model_group.add_argument("--dropout_rate",
                              type=float,
-                             default=.2,
+                             default=.3,
                              help="fraction of the units to drop.")
+
     model_group.add_argument("--hidden_units",
                              type=int,
                              default=100,
@@ -65,9 +75,10 @@ def parse_args():
                              type=int,
                              default=16,
                              help="number of elements to combine in a single batch.")
+
     train_group.add_argument("--epochs",
                              type=int,
-                             default=3,
+                             default=10,
                              help="number of epochs to train.")
 
     train_group.add_argument("--test_split",
