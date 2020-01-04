@@ -1,183 +1,182 @@
-
-import random
-import math
-
 import tensorflow as tf
 import pandas as pd
 import numpy as np
-from sklearn.metrics import roc_auc_score, precision_score, accuracy_score
-from sklearn.preprocessing import OneHotEncoder
 
 
-# This method is for internal use. You should not use it outside of this file.
-def model_evaluate(test_gen, model, metrics, verbose=0):
-    def predict():
-        def get_target_skills(preds, labels):
-            target_skills = labels[:, :, 0:test_gen.num_skills]
-            target_labels = labels[:, :, test_gen.num_skills]
+def target_skill_binary_crossentropy(y_true, y_pred):
+    # Get skills and labels from y_true
+    skills, labels = tf.split(y_true, num_or_size_splits=[-1, 1], axis=-1)
 
-            target_preds = np.sum(preds * target_skills, axis=2)
+    # Get predictions for each skill
+    skill_preds = tf.reduce_sum(y_pred * skills, axis=-1, keepdims=True)
 
-            return target_preds, target_labels
-
-        y_true_t = []
-        y_pred_t = []
-        test_gen.reset()
-
-        while not test_gen.done:
-            # Get batch
-            batch_features, batch_labels = test_gen.next_batch()
-
-            # Predict
-            predictions = model.predict_on_batch(batch_features)
-
-            # Get target skills
-            target_preds, target_labels = get_target_skills(predictions, batch_labels)
-            flat_pred = np.reshape(target_preds, [-1])
-            flat_true = np.reshape(target_labels, [-1])
-
-            # Remove mask
-            mask_idx = np.where(flat_true == -1.0)[0]
-            flat_pred = np.delete(flat_pred, mask_idx)
-            flat_true = np.delete(flat_true, mask_idx)
-
-            # Save it
-            y_true_t.extend(flat_true)
-            y_pred_t.extend(flat_pred)
-
-            if verbose and test_gen.step < test_gen.total_steps:
-                progbar.update(test_gen.step)
-
-        return y_true_t, y_pred_t
-
-    assert (isinstance(test_gen, DataGenerator))
-    assert (model is not None)
-    assert (metrics is not None)
-
-    if verbose:
-        print("==== Evaluation Started ====")
-
-    progbar = Progbar(target=test_gen.total_steps, verbose=verbose)
-
-    y_true, y_pred = predict()
-
-    bin_pred = [1 if p > 0.5 else 0 for p in y_pred]
-
-    results = {}
-    if 'auc' in metrics:
-        results['auc'] = roc_auc_score(y_true, y_pred)
-    if 'acc' in metrics:
-        results['acc'] = accuracy_score(y_true, bin_pred)
-    if 'pre' in metrics:
-        results['pre'] = precision_score(y_true, bin_pred)
-
-    if verbose:
-        progbar.update(test_gen.step, results.items())
-        print("==== Evaluation Done ====")
-
-    return results
-
-# This class is for internal use. You should not use it outside of this file.
-class MetricsCallback(Callback):
-    def __init__(self, data_gen, metrics, verbose=0):
-        super(MetricsCallback, self).__init__()
-        assert (isinstance(data_gen, DataGenerator))
-        assert (metrics is not None)
-
-        self.data_gen = data_gen
-        self.metrics = metrics
-        self.verbose = verbose
-
-    def on_train_begin(self, logs={}):
-        if 'auc' in self.metrics:
-            self.params['metrics'].append('val_auc')
-        if 'acc' in self.metrics:
-            self.params['metrics'].append('val_acc')
-        if 'pre' in self.metrics:
-            self.params['metrics'].append('val_pre')
-
-    def on_epoch_end(self, epoch, logs={}):
-        results = model_evaluate(self.data_gen, self.model, metrics=['auc', 'acc', 'pre'], verbose=self.verbose)
-
-        if 'auc' in self.metrics:
-            logs['val_auc'] = results['auc']
-        if 'acc' in self.metrics:
-            logs['val_acc'] = results['acc']
-        if 'pre' in self.metrics:
-            logs['val_pre'] = results['pre']
-
-# This class defines the DKT model.
-class DKTModel(object):
-    def __init__(self, num_skills, num_features, optimizer='rmsprop', hidden_units=100, batch_size=5, dropout_rate=0.5):
-        def get_target_skills(y_true, y_pred):
-            target_skills = y_true[:, :, 0:num_skills]
-            target_labels = y_true[:, :, num_skills]
-            target_preds = K.sum(y_pred * target_skills, axis=2)
-
-            return target_preds, target_labels
-
-        def loss_function(y_true, y_pred):
-            target_preds, target_labels = get_target_skills(y_true, y_pred)
-            return K.binary_crossentropy(target_labels, target_preds)
-
-        self.batch_size = batch_size
-        self.num_skills = num_skills
-
-        self.__model = Sequential()
-        self.__model.add(Masking(-1., batch_input_shape=(batch_size, None, num_features)))
-        self.__model.add(LSTM(hidden_units, return_sequences=True, stateful=True))
-        self.__model.add(Dropout(dropout_rate))
-        self.__model.add(TimeDistributed(Dense(num_skills, activation='sigmoid')))
-        self.__model.compile(loss=loss_function, optimizer=optimizer)
-
-    def load_weights(self, filepath):
-        assert(filepath is not None)
-        self.__model.load_weights(filepath)
-
-    def fit(self, train_gen, epochs, val_gen, verbose=0, filepath_bestmodel=None, filepath_log=None):
-        assert (isinstance(train_gen, DataGenerator))
-        assert (isinstance(val_gen, DataGenerator))
-
-        callbacks = []
-        callbacks.append(MetricsCallback(val_gen, metrics=['auc','pre','acc']))
-
-        if filepath_bestmodel is not None:
-            callbacks.append(ModelCheckpoint(filepath_bestmodel, monitor='val_loss', verbose=verbose, save_best_only=True))
-        if filepath_log is not None:
-            callbacks.append(CSVLogger(filepath_log))
-
-        if verbose:
-            print("==== Training Started ====")
-
-        history = self.__model.fit_generator(shuffle=False,
-                                             validation_data=val_gen.get_generator(),
-                                             validation_steps=val_gen.total_steps,
-                                             epochs=epochs,
-                                             steps_per_epoch=train_gen.total_steps,
-                                             generator=train_gen.get_generator(),
-                                             callbacks=callbacks,
-                                             verbose=verbose)
-
-        if verbose:
-            print("==== Training Done ====")
-
-        return history
-
-    def evaluate(self, test_gen, metrics, verbose=0, filepath_log=None):
-        assert (isinstance(test_gen, DataGenerator))
-        assert (metrics is not None)
-
-        results = model_evaluate(test_gen, self.__model, metrics, verbose)
-
-        if filepath_log is not None:
-            with open(filepath_log, 'w') as fl:
-                fl.write("auc,acc,pre\n{0},{1},{2}".format(
-                    results['auc'], results['acc'], results['pre']))
-
-        return results
+    return tf.keras.losses.binary_crossentropy(labels, skill_preds)
 
 
-def load_dataset(fn, batch_size=32):
+class DKTModel(tf.keras.Model):
+    def __init__(self, num_features, num_skills, hidden_units=100, dropout_rate=0.2):
+        inputs = tf.keras.Input(shape=(None, num_features), name='inputs')
+
+        x = tf.keras.layers.Masking(mask_value=0.)(inputs)
+
+        x = tf.keras.layers.LSTM(hidden_units, return_sequences=True)(x)
+
+        dropout = tf.keras.layers.Dropout(dropout_rate)
+        x = tf.keras.layers.TimeDistributed(dropout)(x)
+
+        dense = tf.keras.layers.Dense(num_skills, activation='sigmoid')
+        outputs = tf.keras.layers.TimeDistributed(dense, name='outputs')(x)
+
+        super(DKTModel, self).__init__(inputs=inputs,
+                                       outputs=outputs,
+                                       name="DKTModel")
+
+    def compile(self, optimizer, metrics=None):
+        """Configures the model for training.
+        Arguments:
+            optimizer: String (name of optimizer) or optimizer instance.
+                See `tf.keras.optimizers`.
+            metrics: List of metrics to be evaluated by the model during training
+                and testing. Typically you will use `metrics=['accuracy']`.
+                To specify different metrics for different outputs of a
+                multi-output model, you could also pass a dictionary, such as
+                `metrics={'output_a': 'accuracy', 'output_b': ['accuracy', 'mse']}`.
+                You can also pass a list (len = len(outputs)) of lists of metrics
+                such as `metrics=[['accuracy'], ['accuracy', 'mse']]` or
+                `metrics=['accuracy', ['accuracy', 'mse']]`.
+        Raises:
+            ValueError: In case of invalid arguments for
+                `optimizer` or `metrics`.
+        """
+        super(DKTModel, self).compile(
+            loss=target_skill_binary_crossentropy,
+            optimizer=optimizer,
+            metrics=metrics,
+            experimental_run_tf_function=False)
+
+    def fit(self,
+            dataset,
+            epochs=1,
+            verbose=1,
+            callbacks=None,
+            validation_data=None,
+            shuffle=True,
+            initial_epoch=0,
+            steps_per_epoch=None,
+            validation_steps=None,
+            validation_freq=1):
+        """Trains the model for a fixed number of epochs (iterations on a dataset).
+        Arguments:
+            dataset: A `tf.data` dataset. Should return a tuple
+                of `(inputs, (skills, targets))`.
+            epochs: Integer. Number of epochs to train the model.
+                An epoch is an iteration over the entire data provided.
+                Note that in conjunction with `initial_epoch`,
+                `epochs` is to be understood as "final epoch".
+                The model is not trained for a number of iterations
+                given by `epochs`, but merely until the epoch
+                of index `epochs` is reached.
+            verbose: 0, 1, or 2. Verbosity mode.
+                0 = silent, 1 = progress bar, 2 = one line per epoch.
+                Note that the progress bar is not particularly useful when
+                logged to a file, so verbose=2 is recommended when not running
+                interactively (eg, in a production environment).
+            callbacks: List of `keras.callbacks.Callback` instances.
+                List of callbacks to apply during training.
+                See `tf.keras.callbacks`.
+            validation_data: Data on which to evaluate
+                the loss and any model metrics at the end of each epoch.
+                The model will not be trained on this data.
+            shuffle: Boolean (whether to shuffle the training data
+                before each epoch)
+            initial_epoch: Integer.
+                Epoch at which to start training
+                (useful for resuming a previous training run).
+            steps_per_epoch: Integer or `None`.
+                Total number of steps (batches of samples)
+                before declaring one epoch finished and starting the
+                next epoch. The default `None` is equal to
+                the number of samples in your dataset divided by
+                the batch size, or 1 if that cannot be determined. If x is a
+                `tf.data` dataset, and 'steps_per_epoch'
+                is None, the epoch will run until the input dataset is exhausted.
+            validation_steps: Only relevant if `validation_data` is provided.
+                Total number of steps (batches of
+                samples) to draw before stopping when performing validation
+                at the end of every epoch. If
+                'validation_steps' is None, validation
+                will run until the `validation_data` dataset is exhausted.
+            validation_freq: Only relevant if validation data is provided. Integer
+                or `collections_abc.Container` instance (e.g. list, tuple, etc.).
+                If an integer, specifies how many training epochs to run before a
+                new validation run is performed, e.g. `validation_freq=2` runs
+                validation every 2 epochs. If a Container, specifies the epochs on
+                which to run validation, e.g. `validation_freq=[1, 2, 10]` runs
+                validation at the end of the 1st, 2nd, and 10th epochs.
+        Returns:
+            A `History` object. Its `History.history` attribute is
+            a record of training loss values and metrics values
+            at successive epochs, as well as validation loss values
+            and validation metrics values (if applicable).
+        Raises:
+            RuntimeError: If the model was never compiled.
+            ValueError: In case of mismatch between the provided input data
+                and what the model expects.
+        """
+        return super(DKTModel, self).fit(x=dataset,
+                                         epochs=epochs,
+                                         verbose=verbose,
+                                         callbacks=callbacks,
+                                         validation_data=validation_data,
+                                         shuffle=shuffle,
+                                         initial_epoch=initial_epoch,
+                                         steps_per_epoch=steps_per_epoch,
+                                         validation_steps=validation_steps,
+                                         validation_freq=validation_freq)
+
+    def evaluate(self,
+                 dataset,
+                 verbose=1,
+                 steps=None,
+                 callbacks=None):
+        """Returns the loss value & metrics values for the model in test mode.
+        Computation is done in batches.
+        Arguments:
+            dataset: `tf.data` dataset. Should return a
+            tuple of `(inputs, (skills, targets))`.
+            verbose: 0 or 1. Verbosity mode.
+                0 = silent, 1 = progress bar.
+            steps: Integer or `None`.
+                Total number of steps (batches of samples)
+                before declaring the evaluation round finished.
+                Ignored with the default value of `None`.
+                If x is a `tf.data` dataset and `steps` is
+                None, 'evaluate' will run until the dataset is exhausted.
+                This argument is not supported with array inputs.
+            callbacks: List of `keras.callbacks.Callback` instances.
+                List of callbacks to apply during evaluation.
+                See [callbacks](/api_docs/python/tf/keras/callbacks).
+        Returns:
+            Scalar test loss (if the model has a single output and no metrics)
+            or list of scalars (if the model has multiple outputs
+            and/or metrics). The attribute `model.metrics_names` will give you
+            the display labels for the scalar outputs.
+        Raises:
+            ValueError: in case of invalid arguments.
+        """
+        return super(DKTModel, self).evaluate(dataset,
+                                              verbose=verbose,
+                                              steps=steps,
+                                              callbacks=callbacks)
+
+    def evaluate_generator(self, *args, **kwargs):
+        raise SyntaxError("Not supported")
+
+    def fit_generator(self, *args, **kwargs):
+        raise SyntaxError("Not supported")
+
+
+def load_dataset(fn, batch_size=32, shuffle=True):
     df = pd.read_csv(fn, dtype={'skill_name': str})
 
     # Step 1 - Remove questions without skill
@@ -197,30 +196,59 @@ def load_dataset(fn, batch_size=32):
             r['correct'].values
         )
     )
+    nb_users = len(seq)
 
     # Step 5 - Get Tensorflow Dataset
     dataset = tf.data.Dataset.from_generator(
         generator=lambda: seq,
-        output_types=(tf.int32, tf.int32, tf.float32),
-        output_shapes=((None,), (None,), (None,))
+        output_types=(tf.int32, tf.int32, tf.float32)
     )
+
+    if shuffle:
+        dataset = dataset.shuffle(buffer_size=nb_users)
 
     # Step 6 - Pad sequences per batch
     dataset = dataset.padded_batch(
         batch_size=batch_size,
         padding_values=(-1, -1, 0.),
-        padded_shapes=([None], [None], [None])
+        padded_shapes=([None], [None], [None]),
+        drop_remainder=True
     )
 
-    # Step 7 - Encode categorical features
+    # Step 7 - Encode categorical features and merge skills with labels to compute target loss.
+    # More info: https://github.com/tensorflow/tensorflow/issues/32142
     features_depth = df['skill_with_answer'].max() + 1
     skill_depth = df['skill'].max() + 1
 
     dataset = dataset.map(
-        lambda f, m, l: (
-            tf.one_hot(f, depth=features_depth),
-            tf.one_hot(m, depth=skill_depth),
-            l)
+        lambda feat, skill, label: (
+            tf.one_hot(feat, depth=features_depth),
+            tf.concat(values=[
+                tf.one_hot(skill, depth=skill_depth),
+                tf.expand_dims(label, -1)
+            ], axis=-1)
+        )
     )
 
-    return dataset
+    length = nb_users // batch_size
+    return dataset, length, features_depth, skill_depth
+
+
+def split_dataset(dataset, total_size, test_fraction, val_fraction=None):
+    def split(dataset, split_size):
+        split_set = dataset.take(split_size)
+        dataset = dataset.skip(split_size)
+        return dataset, split_set
+
+    assert 0 < test_fraction < 1
+    assert val_fraction is None or 0 < val_fraction < 1
+
+    test_size = int(test_fraction * total_size)
+    train_set, test_set = split(dataset, test_size)
+
+    val_set = None
+    if val_fraction:
+        val_size = int((total_size - test_size) * val_fraction)
+        train_set, val_set = split(train_set, val_size)
+
+    return train_set, test_set, val_set
