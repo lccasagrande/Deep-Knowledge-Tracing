@@ -1,6 +1,4 @@
 import tensorflow as tf
-import pandas as pd
-import numpy as np
 
 
 def target_skill_binary_crossentropy(y_true, y_pred):
@@ -14,8 +12,18 @@ def target_skill_binary_crossentropy(y_true, y_pred):
 
 
 class DKTModel(tf.keras.Model):
-    def __init__(self, num_features, num_skills, hidden_units=100, dropout_rate=0.2):
-        inputs = tf.keras.Input(shape=(None, num_features), name='inputs')
+    """ The Deep Knowledge Tracing model.
+    Arguments in __init__:
+        nb_features: The number of features in the input.
+        nb_skills: The number of skills in the dataset.
+        hidden_units: Positive integer. The number of units of the LSTM layer.
+        dropout_rate: Float between 0 and 1. Fraction of the units to drop.
+    Raises:
+        ValueError: In case of mismatch between the provided input data
+            and what the model expects.
+    """
+    def __init__(self, nb_features, nb_skills, hidden_units=100, dropout_rate=0.2):
+        inputs = tf.keras.Input(shape=(None, nb_features), name='inputs')
 
         x = tf.keras.layers.Masking(mask_value=0.)(inputs)
 
@@ -24,7 +32,7 @@ class DKTModel(tf.keras.Model):
         dropout = tf.keras.layers.Dropout(dropout_rate)
         x = tf.keras.layers.TimeDistributed(dropout)(x)
 
-        dense = tf.keras.layers.Dense(num_skills, activation='sigmoid')
+        dense = tf.keras.layers.Dense(nb_skills, activation='sigmoid')
         outputs = tf.keras.layers.TimeDistributed(dense, name='outputs')(x)
 
         super(DKTModel, self).__init__(inputs=inputs,
@@ -174,81 +182,3 @@ class DKTModel(tf.keras.Model):
 
     def fit_generator(self, *args, **kwargs):
         raise SyntaxError("Not supported")
-
-
-def load_dataset(fn, batch_size=32, shuffle=True):
-    df = pd.read_csv(fn, dtype={'skill_name': str})
-
-    # Step 1 - Remove questions without skill
-    df.dropna(subset=['skill_id'], inplace=True)
-
-    # Step 2 - Enumerate skill id
-    df['skill'], _ = pd.factorize(df['skill_id'], sort=True)
-
-    # Step 3 - Cross skill id with answer to form a synthetic feature
-    df['skill_with_answer'] = df['skill'] * 2 + df['correct']
-
-    # Step 4 - Convert to a sequence per user id
-    seq = df.groupby('user_id').apply(
-        lambda r: (
-            r['skill_with_answer'].values,
-            r['skill'].values,
-            r['correct'].values
-        )
-    )
-    nb_users = len(seq)
-
-    # Step 5 - Get Tensorflow Dataset
-    dataset = tf.data.Dataset.from_generator(
-        generator=lambda: seq,
-        output_types=(tf.int32, tf.int32, tf.float32)
-    )
-
-    if shuffle:
-        dataset = dataset.shuffle(buffer_size=nb_users)
-
-    # Step 6 - Pad sequences per batch
-    dataset = dataset.padded_batch(
-        batch_size=batch_size,
-        padding_values=(-1, -1, 0.),
-        padded_shapes=([None], [None], [None]),
-        drop_remainder=True
-    )
-
-    # Step 7 - Encode categorical features and merge skills with labels to compute target loss.
-    # More info: https://github.com/tensorflow/tensorflow/issues/32142
-    features_depth = df['skill_with_answer'].max() + 1
-    skill_depth = df['skill'].max() + 1
-
-    dataset = dataset.map(
-        lambda feat, skill, label: (
-            tf.one_hot(feat, depth=features_depth),
-            tf.concat(values=[
-                tf.one_hot(skill, depth=skill_depth),
-                tf.expand_dims(label, -1)
-            ], axis=-1)
-        )
-    )
-
-    length = nb_users // batch_size
-    return dataset, length, features_depth, skill_depth
-
-
-def split_dataset(dataset, total_size, test_fraction, val_fraction=None):
-    def split(dataset, split_size):
-        split_set = dataset.take(split_size)
-        dataset = dataset.skip(split_size)
-        return dataset, split_set
-
-    assert 0 < test_fraction < 1
-    assert val_fraction is None or 0 < val_fraction < 1
-
-    test_size = int(test_fraction * total_size)
-    train_set, test_set = split(dataset, test_size)
-
-    val_set = None
-    if val_fraction:
-        val_size = int((total_size - test_size) * val_fraction)
-        train_set, val_set = split(train_set, val_size)
-
-    return train_set, test_set, val_set
