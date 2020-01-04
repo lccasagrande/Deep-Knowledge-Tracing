@@ -1,8 +1,0 @@
-optimizer = "rmsprop"
-lstm_units = 250
-batch_size = 20
-epochs = 10
-dropout_rate = 0.3
-verbose = 1
-validation_rate = 0.2 # Portion of training data to be used for validation
-testing_rate = 0.2 # Portion of data to be used for testing

@@ -1,5 +1,0 @@
-optimizer = "rmsprop"
-lstm_units = 250
-batch_size = 20
-epochs = 10
-dropout_rate = 0.5
