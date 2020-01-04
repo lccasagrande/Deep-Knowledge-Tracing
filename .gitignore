@@ -1,4 +1,6 @@
 .vscode
+examples/logs
+examples/weights
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
