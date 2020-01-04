@@ -12,9 +12,7 @@ setup(
         'tf_gpu': ['tensorflow-gpu>=2.0.0'],
     },
     install_requires=[
-        'matplotlib',
         'numpy',
-        'scipy',
         'pandas',
         'jupyter',
     ],
