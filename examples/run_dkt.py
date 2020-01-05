@@ -15,34 +15,41 @@ def run(args):
                                                            test_fraction=args.test_split,
                                                            val_fraction=args.val_split)
 
+    print("[----- COMPILING  ------]")
     model = deepkt.DKTModel(nb_features=nb_features,
                             nb_skills=nb_skills,
                             hidden_units=args.hidden_units,
                             dropout_rate=args.dropout_rate)
-
-    m = [metrics.BinaryAccuracy(),
-         metrics.AUC(),
-         metrics.Precision(),
-         metrics.Recall()]
-
     model.compile(
         optimizer='adagrad',
-        metrics=m)
+        metrics=[
+            metrics.BinaryAccuracy(),
+            metrics.AUC(),
+            metrics.Precision(),
+            metrics.Recall()
+        ])
+
+    print(model.summary())
+    print("\n[-- COMPILING DONE  --]")
 
     print("\n[----- TRAINING ------]")
-
-    model.fit(dataset=train_set,
-              epochs=args.epochs,
-              verbose=args.v,
-              validation_data=val_set)
-
+    model.fit(
+        dataset=train_set,
+        epochs=args.epochs,
+        verbose=args.v,
+        validation_data=val_set,
+        callbacks=[
+            tf.keras.callbacks.CSVLogger(f"{args.log_dir}/train.log"),
+            tf.keras.callbacks.ModelCheckpoint(args.w,
+                                               save_best_only=True,
+                                               save_weights_only=True),
+            tf.keras.callbacks.TensorBoard(log_dir=args.log_dir)
+        ])
     print("\n[--- TRAINING DONE ---]")
 
     print("[----- TESTING  ------]")
-
-    model.evaluate(dataset=test_set,
-                   verbose=args.v)
-
+    model.load_weights(args.w)
+    model.evaluate(dataset=test_set, verbose=args.v)
     print("\n[--- TESTING DONE  ---]")
 
 
@@ -58,6 +65,16 @@ def parse_args():
                         type=int,
                         default=1,
                         help="verbosity mode [0, 1, 2].")
+
+    parser.add_argument("-w",
+                        type=str,
+                        default="weights/bestmodel",
+                        help="model weights file.")
+
+    parser.add_argument("--log_dir",
+                        type=str,
+                        default="logs/",
+                        help="log dir.")
 
     model_group = parser.add_argument_group(title="Model arguments.")
     model_group.add_argument("--dropout_rate",
