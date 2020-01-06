@@ -1,5 +1,6 @@
 import pandas as pd
 import tensorflow as tf
+import numpy as np
 
 
 def load_dataset(fn, batch_size=32, shuffle=True):
@@ -66,15 +67,23 @@ def split_dataset(dataset, total_size, test_fraction, val_fraction=None):
         dataset = dataset.skip(split_size)
         return dataset, split_set
 
-    assert 0 < test_fraction < 1
-    assert val_fraction is None or 0 < val_fraction < 1
+    if not 0 < test_fraction < 1:
+        raise ValueError("test_fraction must be between (0, 1)")
 
-    test_size = int(test_fraction * total_size)
+    if val_fraction is not None and not 0 < val_fraction < 1:
+        raise ValueError("val_fraction must be between (0, 1)")
+
+    test_size = np.ceil(test_fraction * total_size)
+    train_set = total_size - test_size
+
+    if test_size == 0 or train_set == 0:
+        raise ValueError("The datasets must have at least 1 element. Reduce the split fraction or get more data.")
+
     train_set, test_set = split(dataset, test_size)
 
     val_set = None
     if val_fraction:
-        val_size = int((total_size - test_size) * val_fraction)
+        val_size = np.ceil((total_size - test_size) * val_fraction)
         train_set, val_set = split(train_set, val_size)
 
     return train_set, test_set, val_set
