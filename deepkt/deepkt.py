@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 
 from deepkt import data_util
@@ -20,10 +21,9 @@ class DKTModel(tf.keras.Model):
 
         x = tf.keras.layers.Masking(mask_value=0.)(inputs)
 
-        x = tf.keras.layers.LSTM(hidden_units, return_sequences=True)(x)
-
-        dropout = tf.keras.layers.Dropout(dropout_rate)
-        x = tf.keras.layers.TimeDistributed(dropout, name='dropout')(x)
+        x = tf.keras.layers.LSTM(hidden_units,
+                                 return_sequences=True,
+                                 dropout=dropout_rate)(x)
 
         dense = tf.keras.layers.Dense(nb_skills, activation='sigmoid')
         outputs = tf.keras.layers.TimeDistributed(dense, name='outputs')(x)
