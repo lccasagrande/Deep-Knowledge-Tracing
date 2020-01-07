@@ -6,17 +6,14 @@ import numpy as np
 MASK_VALUE = -1.  # The masking value cannot be zero.
 
 
-def roll_and_pad(arr, steps=1, padding_value=0):
-    a = np.roll(arr, steps, axis=-1)
-    a[:steps] = padding_value
-    return a
-
-
 def load_dataset(fn, batch_size=32, shuffle=True):
     df = pd.read_csv(fn)
 
-    # Step 1 - Remove questions without skill
+    # Step 1.1 - Remove questions without skill
     df.dropna(subset=['skill_id'], inplace=True)
+
+    # Step 1.2 - Remove users with a single answer
+    df = df.groupby('user_id').filter(lambda q: len(q) > 1).copy()
 
     # Step 2 - Enumerate skill id
     df['skill'], _ = pd.factorize(df['skill_id'], sort=True)
@@ -27,9 +24,9 @@ def load_dataset(fn, batch_size=32, shuffle=True):
     # Step 4 - Convert to a sequence per user id and shift features 1 timestep
     seq = df.groupby('user_id').apply(
         lambda r: (
-            roll_and_pad(r['skill_with_answer'].values, 1, -1),
-            r['skill'].values,
-            r['correct'].values,
+            r['skill_with_answer'].values[:-1],
+            r['skill'].values[1:],
+            r['correct'].values[1:],
         )
     )
     nb_users = len(seq)
