@@ -9,6 +9,16 @@ MASK_VALUE = -1.  # The masking value cannot be zero.
 def load_dataset(fn, batch_size=32, shuffle=True):
     df = pd.read_csv(fn)
 
+    if "skill_id" not in df.columns:
+        raise KeyError(f"The column 'skill_id' was not found on {fn}")
+    if "correct" not in df.columns:
+        raise KeyError(f"The column 'correct' was not found on {fn}")
+    if "user_id" not in df.columns:
+        raise KeyError(f"The column 'user_id' was not found on {fn}")
+
+    if not (df['correct'].isin([0, 1])).all():
+        raise KeyError(f"The values of the column 'correct' must be 0 or 1.")
+
     # Step 1.1 - Remove questions without skill
     df.dropna(subset=['skill_id'], inplace=True)
 

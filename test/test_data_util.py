@@ -230,6 +230,40 @@ class TestDataUtil(unittest.TestCase):
             std_inpt.tolist())
 
     @patch('deepkt.data_util.pd.read_csv')
+    def test_load_dataset_should_raise_when_missing_skill_id_column(self, mock_pd):
+        mock_pd.return_value = pd.DataFrame(
+            {'user_id':  pd.Series([1., 1., 1., 2., 2., 3., 3.]),
+             'correct':  pd.Series([1., 0., 1., 0., 0., 1., 1.])
+             })
+        self.assertRaises(KeyError, data_util.load_dataset, "", 1, False)
+
+    @patch('deepkt.data_util.pd.read_csv')
+    def test_load_dataset_should_raise_when_missing_correct_column(self, mock_pd):
+        mock_pd.return_value = pd.DataFrame(
+            {'user_id':  pd.Series([1., 1., 1., 2., 2., 3., 3.]),
+             'skill_id': pd.Series([1., 2., 3., 4., 3., 1., 1.]),
+             })
+        self.assertRaises(KeyError, data_util.load_dataset, "", 1, False)
+
+    @patch('deepkt.data_util.pd.read_csv')
+    def test_load_dataset_should_raise_when_missing_user_id_column(self, mock_pd):
+        mock_pd.return_value = pd.DataFrame(
+            {
+                'skill_id': pd.Series([1., 2., 3., 4., 3., 1., 1.]),
+                'correct':  pd.Series([1., 0., 1., 0., 0., 1., 1.])
+            })
+        self.assertRaises(KeyError, data_util.load_dataset, "", 1, False)
+
+    @patch('deepkt.data_util.pd.read_csv')
+    def test_load_dataset_should_raise_when_invalid_values_for_correct_column(self, mock_pd):
+        mock_pd.return_value = pd.DataFrame(
+            {'user_id':  pd.Series([1., 1., 1., 2., 2., 3., 3.]),
+             'skill_id': pd.Series([1., 2., 3., 4., 3., 1., 1.]),
+             'correct':  pd.Series([1., 0., 2., 0., 0., 1., 1.])
+             })
+        self.assertRaises(KeyError, data_util.load_dataset, "", 1, False)
+
+    @patch('deepkt.data_util.pd.read_csv')
     def test_load_dataset_should_pad_batch(self, mock_pd):
         mock_pd.return_value = pd.DataFrame(
             {'user_id':  pd.Series([1., 1., 1., 2., 2., 3., 3.]),
