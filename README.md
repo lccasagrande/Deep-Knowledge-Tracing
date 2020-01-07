@@ -1,4 +1,4 @@
-# Deep-Knowledge-Tracing [![Build Status](https://travis-ci.com/lccasagrande/Deep-Knowledge-Tracing.svg?branch=master)](https://travis-ci.com/lccasagrande/Deep-Knowledge-Tracing) [![Coverage Status](https://coveralls.io/repos/github/lccasagrande/Deep-Knowledge-Tracing/badge.svg?branch=master)](https://coveralls.io/github/lccasagrande/Deep-Knowledge-Tracing?branch=migrate_to_tf2)
+# Deep-Knowledge-Tracing [![Build Status](https://travis-ci.com/lccasagrande/Deep-Knowledge-Tracing.svg?branch=master)](https://travis-ci.com/lccasagrande/Deep-Knowledge-Tracing) [![Coverage Status](https://coveralls.io/repos/github/lccasagrande/Deep-Knowledge-Tracing/badge.svg?branch=master&kill_cache=1)](https://coveralls.io/github/lccasagrande/Deep-Knowledge-Tracing?branch=master&kill_cache=1)
 
 This repository contains my implementation of [**Deep Knowledge Tracing**](https://github.com/chrispiech/DeepKnowledgeTracing) for the Udacity's Capstone Project.
 
