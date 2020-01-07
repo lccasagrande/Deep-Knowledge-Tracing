@@ -75,6 +75,14 @@ dkt_model.compile(optimizer='rmsprop', metrics=[bin_acc])
 
 Take a look at [deepkt/metrics.py](https://github.com/lccasagrande/Deep-Knowledge-Tracing/tree/master/deepkt/metrics.py) to check more examples.
 
+## Custom Datasets
+
+To use a different dataset, you must be sure that you have the following columns:
+
+- **user_id**: The identifier of the student.
+- **skill_id**: The identifier of the skill of the question.
+- **correct**: The answer to the question [0, 1].
+
 ## Support
 
 If you have any question or find a bug, please contact me or open an issue. Pull request are also welcome.

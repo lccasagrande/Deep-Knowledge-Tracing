@@ -13,7 +13,7 @@ def roll_and_pad(arr, steps=1, padding_value=0):
 
 
 def load_dataset(fn, batch_size=32, shuffle=True):
-    df = pd.read_csv(fn, dtype={'skill_name': str})
+    df = pd.read_csv(fn)
 
     # Step 1 - Remove questions without skill
     df.dropna(subset=['skill_id'], inplace=True)
