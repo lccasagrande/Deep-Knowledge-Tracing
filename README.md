@@ -2,6 +2,7 @@
 
 This repository contains my implementation of [**Deep Knowledge Tracing**](https://github.com/chrispiech/DeepKnowledgeTracing) for the Udacity's Capstone Project.
 
+
 ## Overview
 
 The objective is to predict the probabilities of a student correctly answering a problem not yet seen by him. To this end, we train the model using the [**ASSISTments Skill-builder data 2009-2010**](https://sites.google.com/site/assistmentsdata/home/assistment-2009-2010-data/skill-builder-data-2009-2010) public dataset.
@@ -55,6 +56,8 @@ Tensorflow 2.0 is installed along with the project. Check the instructions below
     ``` bash
     tensorboard --logdir=logs
     ```
+
+    ![alt text](docs/output_example.png "Output example")
 
 ## Custom Metrics
 

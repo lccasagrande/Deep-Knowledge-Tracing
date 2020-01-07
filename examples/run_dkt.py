@@ -21,7 +21,7 @@ def run(args):
                             hidden_units=args.hidden_units,
                             dropout_rate=args.dropout_rate)
     model.compile(
-        optimizer='adagrad',
+        optimizer='adam',
         metrics=[
             metrics.BinaryAccuracy(),
             metrics.AUC(),
@@ -90,12 +90,12 @@ def parse_args():
     train_group = parser.add_argument_group(title="Training arguments.")
     train_group.add_argument("--batch_size",
                              type=int,
-                             default=16,
+                             default=32,
                              help="number of elements to combine in a single batch.")
 
     train_group.add_argument("--epochs",
                              type=int,
-                             default=10,
+                             default=50,
                              help="number of epochs to train.")
 
     train_group.add_argument("--test_split",
