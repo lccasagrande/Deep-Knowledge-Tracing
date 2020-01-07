@@ -86,17 +86,17 @@ def split_dataset(dataset, total_size, test_fraction, val_fraction=None):
         raise ValueError("val_fraction must be between (0, 1)")
 
     test_size = np.ceil(test_fraction * total_size)
-    train_set = total_size - test_size
+    train_size = total_size - test_size
 
-    if test_size == 0 or train_set == 0:
+    if test_size == 0 or train_size == 0:
         raise ValueError(
-            "The datasets must have at least 1 element. Reduce the split fraction or get more data.")
+            "The train and test datasets must have at least 1 element. Reduce the split fraction or get more data.")
 
     train_set, test_set = split(dataset, test_size)
 
     val_set = None
     if val_fraction:
-        val_size = np.ceil((total_size - test_size) * val_fraction)
+        val_size = np.ceil(train_size * val_fraction)
         train_set, val_set = split(train_set, val_size)
 
     return train_set, test_set, val_set

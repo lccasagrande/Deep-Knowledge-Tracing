@@ -10,11 +10,9 @@ The objective is to predict the probabilities of a student correctly answering a
 
 You'll need Python 3.7 x64 and Tensorflow 2.0 to be able to run this project.
 
-If you do not have Python installed yet, it is recommended that you install the [Anaconda](https://www.anaconda.com/download/) distribution of Python, which has almost all packages required in these projects.
+If you do not have Python installed yet, it is recommended that you install the [Anaconda](https://www.anaconda.com/download/) distribution of Python, which has almost all packages required in this project. You can also install Python 3.7 x64 from [here](https://www.python.org/downloads/).
 
-You can also install Python 3.7 x64 from [here](https://www.python.org/downloads/).
-
-Tensorflow 2.0 is installed along with the project.
+Tensorflow 2.0 is installed along with the project. Check the instructions below.
 
 ## Instructions
 
@@ -33,7 +31,7 @@ Tensorflow 2.0 is installed along with the project.
         pip install -e .[tf]
         ```
 
-    - Otherwise, if you want to install with TensorFlow-GPU, follow [this guide](https://www.tensorflow.org/install/) to check the necessary NVIDIA software on your system. After that, type:
+    - Otherwise, if you want to install with TensorFlow-GPU follow [this guide](https://www.tensorflow.org/install/) to check the necessary NVIDIA software. After that, type:
 
         ``` bash
         pip install -e .[tf_gpu]
@@ -46,13 +44,13 @@ Tensorflow 2.0 is installed along with the project.
         jupyter notebook DKT.ipynb
         ```
 
-    - Or run the python script:
+    - Run the python script:
 
         ``` bash
         python run_dkt.py
         ```
 
-4. Analyse the results with tensorboard:
+4. [Optional] Analyse the results with tensorboard:
 
     ``` bash
     tensorboard --logdir=logs
