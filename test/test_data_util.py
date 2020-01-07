@@ -166,6 +166,39 @@ class TestDataUtil(unittest.TestCase):
         self.assertEqual(list(x), [-2, -2, 1, 2, 3])
 
     @patch('deepkt.data_util.pd.read_csv')
+    def test_load_dataset_should_shuffle(self, mock_pd):
+        seed = 13
+        tf.random.set_seed(seed)
+        np.random.seed(seed)
+
+        mock_pd.return_value = pd.DataFrame(
+            {'user_id':  pd.Series([1., 1., 1., 2., 2.]),
+             'skill_id': pd.Series([1., 2., 3., 4., 3.]),
+             'correct':  pd.Series([1., 0., 1., 0., 0.])
+             })
+
+        m = data_util.MASK_VALUE
+        inputs_np = [
+            [
+                [0., 0., 0., 0., 0., 0., 0.],
+                [0., 1., 0., 0., 0., 0., 0.],  # 1
+                [0., 0., 1., 0., 0., 0., 0.]   # 2
+            ],
+            [
+                [0., 0., 0., 0., 0., 0., 0.],
+                [0., 0., 0., 0., 0., 0., 1.],  # 4
+                [m, m, m, m, m, m, m],
+            ]
+        ]
+        np.random.shuffle(inputs_np)
+
+        dataset, _, _, _ = data_util.load_dataset("", 2, True)
+        it = iter(dataset)
+        inputs, targets = next(it)
+        inputs = inputs.numpy().tolist()
+        self.assertEqual(inputs, inputs_np)
+
+    @patch('deepkt.data_util.pd.read_csv')
     def test_load_dataset_should_roll_features(self, mock_pd):
         mock_pd.return_value = pd.DataFrame(
             {'user_id':  pd.Series([1., 1., 1., 2., 2.]),
