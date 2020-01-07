@@ -3,6 +3,15 @@ import tensorflow as tf
 import numpy as np
 
 
+MASK_VALUE = -1.  # The masking value cannot be zero.
+
+
+def roll_and_pad(arr, steps=1, padding_value=0):
+    a = np.roll(arr, steps, axis=-1)
+    a[:steps] = padding_value
+    return a
+
+
 def load_dataset(fn, batch_size=32, shuffle=True):
     df = pd.read_csv(fn, dtype={'skill_name': str})
 
@@ -15,12 +24,12 @@ def load_dataset(fn, batch_size=32, shuffle=True):
     # Step 3 - Cross skill id with answer to form a synthetic feature
     df['skill_with_answer'] = df['skill'] * 2 + df['correct']
 
-    # Step 4 - Convert to a sequence per user id
+    # Step 4 - Convert to a sequence per user id and shift features 1 timestep
     seq = df.groupby('user_id').apply(
         lambda r: (
-            r['skill_with_answer'].values,
+            roll_and_pad(r['skill_with_answer'].values, 1, -1),
             r['skill'].values,
-            r['correct'].values
+            r['correct'].values,
         )
     )
     nb_users = len(seq)
@@ -34,15 +43,7 @@ def load_dataset(fn, batch_size=32, shuffle=True):
     if shuffle:
         dataset = dataset.shuffle(buffer_size=nb_users)
 
-    # Step 6 - Pad sequences per batch
-    dataset = dataset.padded_batch(
-        batch_size=batch_size,
-        padding_values=(-1, -1, 0.),
-        padded_shapes=([None], [None], [None]),
-        drop_remainder=True
-    )
-
-    # Step 7 - Encode categorical features and merge skills with labels to compute target loss.
+    # Step 6 - Encode categorical features and merge skills with labels to compute target loss.
     # More info: https://github.com/tensorflow/tensorflow/issues/32142
     features_depth = df['skill_with_answer'].max() + 1
     skill_depth = df['skill'].max() + 1
@@ -50,11 +51,22 @@ def load_dataset(fn, batch_size=32, shuffle=True):
     dataset = dataset.map(
         lambda feat, skill, label: (
             tf.one_hot(feat, depth=features_depth),
-            tf.concat(values=[
-                tf.one_hot(skill, depth=skill_depth),
-                tf.expand_dims(label, -1)
-            ], axis=-1)
+            tf.concat(
+                values=[
+                    tf.one_hot(skill, depth=skill_depth),
+                    tf.expand_dims(label, -1)
+                ],
+                axis=-1
+            )
         )
+    )
+
+    # Step 7 - Pad sequences per batch
+    dataset = dataset.padded_batch(
+        batch_size=batch_size,
+        padding_values=(MASK_VALUE, MASK_VALUE),
+        padded_shapes=([None, None], [None, None]),
+        drop_remainder=True
     )
 
     length = nb_users // batch_size
@@ -77,7 +89,8 @@ def split_dataset(dataset, total_size, test_fraction, val_fraction=None):
     train_set = total_size - test_size
 
     if test_size == 0 or train_set == 0:
-        raise ValueError("The datasets must have at least 1 element. Reduce the split fraction or get more data.")
+        raise ValueError(
+            "The datasets must have at least 1 element. Reduce the split fraction or get more data.")
 
     train_set, test_set = split(dataset, test_size)
 
@@ -91,6 +104,9 @@ def split_dataset(dataset, total_size, test_fraction, val_fraction=None):
 
 def get_target(y_true, y_pred):
     # Get skills and labels from y_true
+    mask = 1. - tf.cast(tf.equal(y_true, MASK_VALUE), y_true.dtype)
+    y_true = y_true * mask
+
     skills, y_true = tf.split(y_true, num_or_size_splits=[-1, 1], axis=-1)
 
     # Get predictions for each skill

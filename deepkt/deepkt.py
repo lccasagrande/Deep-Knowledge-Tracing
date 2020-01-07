@@ -19,7 +19,7 @@ class DKTModel(tf.keras.Model):
     def __init__(self, nb_features, nb_skills, hidden_units=100, dropout_rate=0.2):
         inputs = tf.keras.Input(shape=(None, nb_features), name='inputs')
 
-        x = tf.keras.layers.Masking(mask_value=0.)(inputs)
+        x = tf.keras.layers.Masking(mask_value=data_util.MASK_VALUE)(inputs)
 
         x = tf.keras.layers.LSTM(hidden_units,
                                  return_sequences=True,
