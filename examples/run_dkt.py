@@ -33,18 +33,19 @@ def run(args):
     print("\n[-- COMPILING DONE  --]")
 
     print("\n[----- TRAINING ------]")
-    model.fit(
-        dataset=train_set,
-        epochs=args.epochs,
-        verbose=args.v,
-        validation_data=val_set,
-        callbacks=[
-            tf.keras.callbacks.CSVLogger(f"{args.log_dir}/train.log"),
-            tf.keras.callbacks.ModelCheckpoint(args.w,
-                                               save_best_only=True,
-                                               save_weights_only=True),
-            tf.keras.callbacks.TensorBoard(log_dir=args.log_dir)
-        ])
+    with tf.device(tf.test.gpu_device_name()):
+        model.fit(
+            dataset=train_set,
+            epochs=args.epochs,
+            verbose=args.v,
+            validation_data=val_set,
+            callbacks=[
+                tf.keras.callbacks.CSVLogger(f"{args.log_dir}/train.log"),
+                tf.keras.callbacks.ModelCheckpoint(args.w,
+                                                   save_best_only=True,
+                                                   save_weights_only=True),
+                tf.keras.callbacks.TensorBoard(log_dir=args.log_dir)
+            ])
     print("\n[--- TRAINING DONE ---]")
 
     print("[----- TESTING  ------]")
